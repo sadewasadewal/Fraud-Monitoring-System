@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Fraud Detection - Live Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        slate: { 850: '#151e2e', 900: '#0f172a' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; transition: background-color 0.3s, color 0.3s; }
+        .glass-panel { transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s; }
+        
+        /* Light glass panels */
+        .glass-panel { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(226, 232, 240, 0.8); }
+        /* Pure Dark Black glass panels */
+        .dark .glass-panel { background: rgba(9, 9, 11, 0.75); border: 1px solid rgba(39, 39, 42, 0.6); }
+        
+        .pulse-dot { display: inline-block; width: 10px; height: 10px; background-color: #10b981; border-radius: 50%; box-shadow: 0 0 12px rgba(16,185,129,0.8); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .dark ::-webkit-scrollbar-thumb { background: #27272a; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+    </style>
+</head>
+<body class="min-h-screen p-6 antialiased flex flex-col bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100">
+    
+    <header class="flex justify-between items-center mb-6 fade-in">
+        <div>
+            <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight transition duration-200">
+                Fraud Monitor
+            </h1>
+            <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Enterprise Banking Security · AI Active</p>
+        </div>
+        <div class="flex items-center">
+            <!-- Theme Toggle Switch Button -->
+            <button id="themeToggle" onclick="toggleTheme()" class="p-2 rounded-xl bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 text-slate-500 dark:text-zinc-400 hover:text-slate-950 dark:hover:text-white transition duration-200 mr-3 shadow-sm hover:shadow-md">
+                <!-- Sun Icon (visible in dark mode) -->
+                <svg id="sunIcon" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 7a5 5 0 100 10 5 5 0 000-10z"></path>
+                </svg>
+                <!-- Moon Icon (visible in light mode) -->
+                <svg id="moonIcon" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                </svg>
+            </button>
+            
+            <div class="flex items-center space-x-3 bg-white dark:bg-zinc-950 px-4 py-2 rounded-full border border-slate-200 dark:border-zinc-800 shadow-sm">
+                <span class="pulse-dot"></span>
+                <span class="text-sm font-medium text-emerald-600 dark:text-emerald-400" id="systemStatusText">System Secure</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- KPI Metrics Row -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 fade-in" style="animation-delay: 0.05s;">
+        <!-- KPI 1 -->
+        <div class="glass-panel rounded-xl p-4 flex items-center justify-between shadow-lg">
+            <div>
+                <p class="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Processed Tx</p>
+                <h3 class="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1 font-mono" id="kpiTotal">0</h3>
+            </div>
+            <div class="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            </div>
+        </div>
+        <!-- KPI 2 -->
+        <div class="glass-panel rounded-xl p-4 flex items-center justify-between shadow-lg">
+            <div>
+                <p class="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Flagged Alerts</p>
+                <h3 class="text-2xl font-bold text-amber-500 dark:text-amber-400 mt-1 font-mono" id="kpiFlagged">0</h3>
+            </div>
+            <div class="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 dark:text-amber-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            </div>
+        </div>
+        <!-- KPI 3 -->
+        <div class="glass-panel rounded-xl p-4 flex items-center justify-between shadow-lg">
+            <div>
+                <p class="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Critical Blocks</p>
+                <h3 class="text-2xl font-bold text-red-600 dark:text-red-500 mt-1 font-mono" id="kpiCritical">0</h3>
+            </div>
+            <div class="w-10 h-10 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-600 dark:text-red-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+            </div>
+        </div>
+        <!-- KPI 4 -->
+        <div class="glass-panel rounded-xl p-4 flex items-center justify-between shadow-lg">
+            <div>
+                <p class="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Frozen Users</p>
+                <h3 class="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1 font-mono" id="kpiFrozen">0</h3>
+            </div>
+            <div class="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters & Search Bar -->
+    <div class="glass-panel rounded-xl p-3 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-lg fade-in" style="animation-delay: 0.1s;">
+        <!-- Filters Tabs -->
+        <div class="flex bg-slate-100 dark:bg-zinc-950 p-1 rounded-lg border border-slate-200 dark:border-zinc-800 self-start">
+            <button onclick="setFilterTab(this, 'all')" class="filter-tab active text-xs font-semibold px-3 py-1.5 rounded-md text-slate-100 bg-blue-600 dark:bg-blue-500/20 border border-blue-600 dark:border-blue-500/30 transition duration-150" data-tab="all">
+                All Transactions
+            </button>
+            <button onclick="setFilterTab(this, 'flag')" class="filter-tab text-xs font-semibold px-3 py-1.5 rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition duration-150 ml-1" data-tab="flag">
+                Suspicious (FLAG)
+            </button>
+            <button onclick="setFilterTab(this, 'block')" class="filter-tab text-xs font-semibold px-3 py-1.5 rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition duration-150 ml-1" data-tab="block">
+                Critical (BLOCK)
+            </button>
+        </div>
+        <!-- Search bar -->
+        <div class="relative w-full md:w-80">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </span>
+            <input type="text" id="searchInput" oninput="handleSearch()" placeholder="Search user, location, IP, device..." class="w-full bg-white dark:bg-zinc-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-xs rounded-lg pl-9 pr-4 py-2 border border-slate-200 dark:border-zinc-800 focus:outline-none focus:border-blue-500 transition duration-200">
+        </div>
+    </div>
+
+    <!-- Main Grid Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-grow">
+        <!-- Main Chart Area -->
+        <div class="col-span-2 glass-panel rounded-2xl p-6 shadow-2xl fade-in flex flex-col" style="animation-delay: 0.15s;">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-semibold flex items-center text-slate-900 dark:text-slate-100">
+                    <svg class="w-5 h-5 mr-2 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                    Live Anomaly Risk Score
+                </h2>
+                <div class="text-xs bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-3 py-1 rounded-md border border-slate-300 dark:border-slate-700">Isolation Forest Model v1.2</div>
+            </div>
+            <div class="flex-grow w-full relative" style="min-height: 300px;">
+                <canvas id="riskChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Alerts feed -->
+        <div class="glass-panel rounded-2xl p-6 shadow-2xl fade-in flex flex-col h-[520px]" style="animation-delay: 0.2s;">
+            <div class="flex justify-between items-center bg-transparent pb-4 z-10 border-b border-slate-200 dark:border-slate-700/50 mb-4">
+                <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">Real-Time Alerts</h2>
+                <span class="bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs px-2 py-1 rounded border border-blue-200 dark:border-blue-500/30 font-mono" id="txCount">0 tx/s</span>
+            </div>
+            
+            <div id="alertsContainer" class="flex-grow overflow-y-auto pr-2 space-y-3">
+                <p class="text-slate-500 text-sm italic text-center mt-10">Initializing secure connection...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inspect User Details Modal -->
+    <div id="inspectModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
+        <div class="glass-panel max-w-lg w-full rounded-2xl shadow-2xl p-6 relative border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-col max-h-[90vh]">
+            <button onclick="closeInspectModal()" class="absolute top-4 right-4 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <div class="flex items-center space-x-4 mb-4 border-b border-slate-200 dark:border-slate-800/60 pb-4">
+                <div id="inspectAvatar" class="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg"></div>
+                <div>
+                    <h3 id="inspectName" class="text-xl font-bold text-slate-900 dark:text-slate-100"></h3>
+                    <p id="inspectEmail" class="text-sm text-slate-500 dark:text-slate-400 font-mono"></p>
+                </div>
+            </div>
+            
+            <div class="flex-grow overflow-y-auto pr-1 space-y-4 text-sm text-slate-600 dark:text-slate-300">
+                <!-- Row stats -->
+                <div class="grid grid-cols-2 gap-4 bg-slate-100/50 dark:bg-zinc-900/40 p-3 rounded-xl border border-slate-200 dark:border-zinc-800/40">
+                    <div>
+                        <span class="text-slate-400 dark:text-slate-500 block text-xs font-semibold uppercase">Account Balance</span>
+                        <span id="inspectBalance" class="text-lg font-bold text-slate-800 dark:text-slate-200 font-mono"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 dark:text-slate-500 block text-xs font-semibold uppercase">Device Trust Score</span>
+                        <span id="inspectTrust" class="text-lg font-bold text-emerald-600 dark:text-emerald-400">High Confidence</span>
+                    </div>
+                </div>
+
+                <!-- Deep Analysis Metadata -->
+                <div class="space-y-3">
+                    <h4 class="font-semibold text-slate-800 dark:text-slate-200 border-b border-slate-200 dark:border-zinc-800 pb-1">Geographic Alignment</h4>
+                    <p id="inspectGeoInfo" class="text-xs"></p>
+                    
+                    <h4 class="font-semibold text-slate-800 dark:text-slate-200 border-b border-slate-200 dark:border-zinc-800 pb-1">Transaction Frequency</h4>
+                    <p class="text-xs">Rolling Velocity: <span class="text-slate-850 dark:text-slate-100 font-medium">3 transactions in last 2 minutes</span>. Normal average: <span class="text-slate-500 dark:text-slate-400 font-medium font-mono">1.2 transactions/day</span>.</p>
+                    
+                    <h4 class="font-semibold text-slate-800 dark:text-slate-200 border-b border-slate-200 dark:border-zinc-800 pb-1">Model Evaluation Metrics</h4>
+                    <div class="grid grid-cols-2 gap-2 text-xs font-mono bg-slate-100/60 dark:bg-zinc-950/40 p-3 rounded-lg border border-slate-200 dark:border-zinc-800/40">
+                        <div>Isolation Score: <span id="inspectScoreMetric" class="text-slate-850 dark:text-slate-100 font-semibold"></span></div>
+                        <div>Density Fraction: <span class="text-slate-850 dark:text-slate-100 font-semibold">0.024</span></div>
+                        <div>Model Verdict: <span id="inspectVerdictMetric" class="text-slate-850 dark:text-slate-100 font-semibold"></span></div>
+                        <div>Model Confidence: <span class="text-slate-850 dark:text-slate-100 font-semibold">98.4%</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-3 border-t border-slate-200 dark:border-slate-800/60 pt-4 mt-4">
+                <button onclick="closeInspectModal()" class="bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-800 transition font-semibold text-xs">
+                    Close Analysis
+                </button>
+                <button id="inspectFreezeBtn" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg transition font-semibold text-xs shadow-md shadow-red-600/30">
+                    Freeze Account
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Freeze User Confirmation Modal -->
+    <div id="freezeModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
+        <div class="glass-panel max-w-md w-full rounded-2xl shadow-2xl p-6 relative border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-col">
+            <div class="flex items-center space-x-3 text-red-500 mb-4 border-b border-slate-200 dark:border-slate-800/60 pb-3">
+                <svg class="w-8 h-8 animate-pulse" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                <h3 class="text-lg font-bold text-slate-900 dark:text-slate-100">Freeze User Account?</h3>
+            </div>
+            
+            <p class="text-sm text-slate-600 dark:text-slate-300 mb-4">
+                You are about to initiate a security hold on <strong id="freezeUserName" class="text-slate-900 dark:text-slate-100"></strong>'s assets. This will block all card swipes, ACH transfers, and online portal access.
+            </p>
+
+            <div class="space-y-3 bg-slate-100 dark:bg-zinc-900/60 p-3 rounded-lg border border-slate-200 dark:border-zinc-800/80 text-xs text-slate-600 dark:text-slate-300 mb-5">
+                <label class="block font-semibold text-slate-850 dark:text-slate-200">Mitigation Severity Level</label>
+                <div class="space-y-2 pt-1">
+                    <label class="flex items-center">
+                        <input type="radio" name="freezeSeverity" value="hold" checked class="text-blue-500 bg-slate-100 dark:bg-slate-950 border-slate-300 dark:border-slate-800">
+                        <span class="ml-2 font-medium">Temporary asset hold (24-hour review)</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="freezeSeverity" value="full" class="text-red-500 bg-slate-100 dark:bg-slate-950 border-slate-300 dark:border-slate-800">
+                        <span class="ml-2 font-medium text-red-600 dark:text-red-400">Permanent account freeze & trigger KYC</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-3">
+                <button onclick="closeFreezeModal()" class="bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-800 transition font-semibold text-xs">
+                    Cancel
+                </button>
+                <button onclick="confirmFreezeUser()" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg transition font-semibold text-xs shadow-md shadow-red-600/30">
+                    Confirm Account Freeze
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Success Toast Notifications -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 bg-white dark:bg-zinc-900 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded-xl p-4 shadow-2xl backdrop-blur-md flex items-center space-x-3 transform translate-y-24 opacity-0 transition duration-300">
+        <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"></path></svg>
+        </div>
+        <div>
+            <h4 class="font-bold text-sm text-slate-900 dark:text-slate-100">Mitigation Applied</h4>
+            <p id="toastMessage" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5"></p>
+        </div>
+    </div>
+
+    <script>
+        // Init Chart.js
+        const ctx = document.getElementById('riskChart').getContext('2d');
+        const chartData = {
+            labels: Array(25).fill(''),
+            datasets: [{
+                label: 'Risk Score (0-100)',
+                data: Array(25).fill(0).map(() => Math.floor(Math.random() * 15)),
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderWidth: 2,
+                pointRadius: 0,
+                pointHoverRadius: 6,
+                fill: true,
+                tension: 0.4
+            }]
+        };
+
+        const config = {
+            type: 'line',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+                scales: {
+                    x: { display: false, grid: { display: false } },
+                    y: { 
+                        min: 0, max: 100, 
+                        grid: { color: 'rgba(63, 63, 70, 0.3)', tickLength: 0 },
+                        border: { display: false },
+                        ticks: { color: '#94a3b8', padding: 10, stepSize: 25 }
+                    }
+                },
+                animation: { duration: 0 } // Handle animation manually
+            }
+        };
+
+        const riskChart = new Chart(ctx, config);
+
+        // Theme Toggle Logic
+        window.toggleTheme = function() {
+            const html = document.documentElement;
+            const isDark = html.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateChartTheme(isDark);
+        };
+
+        function updateChartTheme(isDark) {
+            if (isDark) {
+                riskChart.options.scales.y.grid.color = 'rgba(63, 63, 70, 0.3)'; // zinc-700
+                riskChart.options.scales.y.ticks.color = '#a1a1aa'; // zinc-400
+            } else {
+                riskChart.options.scales.y.grid.color = 'rgba(228, 228, 231, 0.8)'; // zinc-200
+                riskChart.options.scales.y.ticks.color = '#71717a'; // zinc-500
+            }
+            riskChart.update();
+        }
+
+        // Apply theme on initial load
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            if (savedTheme === 'dark') {
+                document.documentElement.classList.add('dark');
+                updateChartTheme(true);
+            } else {
+                document.documentElement.classList.remove('dark');
+                updateChartTheme(false);
+            }
+        })();
+
+        // Simulated User Profiles Pool
+        const userPool = [
+            { name: "Sophia Martinez", email: "s.martinez@outlook.com", homeLoc: "San Francisco, USA", avatarColor: "bg-blue-500", device: "iPhone 15 Pro", avgAmount: 120, balance: 14250 },
+            { name: "Liam O'Connor", email: "liam.oconnor@dublin-net.ie", homeLoc: "Dublin, IE", avatarColor: "bg-emerald-500", device: "Safari / macOS", avgAmount: 45, balance: 3400 },
+            { name: "Yuki Tanaka", email: "y.tanaka@tokyotech.co.jp", homeLoc: "Tokyo, JP", avatarColor: "bg-indigo-500", device: "Chrome / Windows 11", avgAmount: 850, balance: 98100 },
+            { name: "Marcus Vance", email: "mvance@chicago-law.com", homeLoc: "Chicago, USA", avatarColor: "bg-purple-500", device: "Pixel 8 Pro", avgAmount: 320, balance: 12500 },
+            { name: "Sarah Jenkins", email: "sarah.jenkins@giga-corp.com", homeLoc: "London, UK", avatarColor: "bg-pink-500", device: "iPad OS 17", avgAmount: 18, balance: 850 },
+            { name: "Michael Chen", email: "mchen@gmail.com", homeLoc: "Toronto, CA", avatarColor: "bg-amber-500", device: "Firefox / macOS", avgAmount: 1500, balance: 145000 },
+            { name: "Amina Diop", email: "amina.diop@dakar-tech.sn", homeLoc: "Dakar, SN", avatarColor: "bg-rose-500", device: "Samsung S24 Ultra", avgAmount: 60, balance: 5200 },
+            { name: "Alex Mercer", email: "alex.mercer@proton.me", homeLoc: "Berlin, DE", avatarColor: "bg-cyan-500", device: "Brave / Linux", avgAmount: 240, balance: 18900 }
+        ];
+
+        const locationsPool = ["Cayman Islands", "Zurich, CH", "Singapore, SG", "Reykjavik, IS", "Lagos, NG", "Moscow, RU"];
+        const devicePool = ["Termux / Unix Shell", "Tor Browser / Tor Node", "Unknown Android Emulator", "curl / 7.68.0"];
+        
+        let allTransactions = [];
+        let totalTxCount = 0;
+        let flaggedAlertCount = 0;
+        let criticalBlockCount = 0;
+        let frozenUsersCount = 0;
+        let activeFreezeTxId = null;
+
+        const alertsContainer = document.getElementById('alertsContainer');
+        const searchInput = document.getElementById('searchInput');
+        alertsContainer.innerHTML = '';
+
+        function addAlert(txId, score, decision, reasons) {
+            totalTxCount++;
+            
+            // Increment counters based on decision
+            if (decision === "BLOCK") {
+                criticalBlockCount++;
+            } else if (decision === "FLAG") {
+                flaggedAlertCount++;
+            }
+
+            // Select random user and construct properties
+            const baseUser = userPool[Math.floor(Math.random() * userPool.length)];
+            let txAmount = baseUser.avgAmount * (0.5 + Math.random() * 1.5);
+            let txLoc = baseUser.homeLoc;
+            let txDevice = baseUser.device;
+            let txIp = `192.168.${Math.floor(Math.random()*254)}.${Math.floor(Math.random()*254)}`;
+
+            if (decision === "BLOCK") {
+                txAmount = baseUser.avgAmount * (15 + Math.random() * 30);
+                txLoc = locationsPool[Math.floor(Math.random() * locationsPool.length)];
+                txDevice = devicePool[Math.floor(Math.random() * devicePool.length)];
+                txIp = `${Math.floor(Math.random()*150)+80}.${Math.floor(Math.random()*254)}.${Math.floor(Math.random()*254)}.${Math.floor(Math.random()*254)}`;
+                
+                // Pulse dot visual feedback
+                const dot = document.querySelector('.pulse-dot');
+                dot.style.backgroundColor = '#ef4444';
+                dot.style.boxShadow = '0 0 12px rgba(239, 68, 68, 0.8)';
+                setTimeout(() => {
+                    dot.style.backgroundColor = '#10b981';
+                    dot.style.boxShadow = '0 0 12px rgba(16,185,129,0.8)';
+                }, 1000);
+            } else if (decision === "FLAG") {
+                txAmount = baseUser.avgAmount * (4 + Math.random() * 6);
+                txLoc = locationsPool[Math.floor(Math.random() * locationsPool.length)];
+                txIp = `172.16.${Math.floor(Math.random()*254)}.${Math.floor(Math.random()*254)}`;
+            }
+
+            const transaction = {
+                txId: txId,
+                score: score,
+                decision: decision,
+                reasons: reasons,
+                user: baseUser,
+                amount: txAmount,
+                location: txLoc,
+                device: txDevice,
+                ip: txIp,
+                timestamp: new Date().toLocaleTimeString()
+            };
+
+            allTransactions.unshift(transaction);
+            if (allTransactions.length > 100) {
+                allTransactions.pop();
+            }
+
+            // Update KPI visuals
+            document.getElementById('kpiTotal').innerText = totalTxCount;
+            document.getElementById('kpiFlagged').innerText = flaggedAlertCount;
+            document.getElementById('kpiCritical').innerText = criticalBlockCount;
+            document.getElementById('txCount').innerText = `${Math.floor(Math.random() * 3) + 2} tx/s`;
+
+            renderAlerts();
+        }
+
+        function renderAlerts() {
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            const activeTab = document.querySelector('.filter-tab.active').dataset.tab;
+
+            const filtered = allTransactions.filter(tx => {
+                if (activeTab === 'flag' && tx.decision !== 'FLAG') return false;
+                if (activeTab === 'block' && tx.decision !== 'BLOCK') return false;
+
+                if (searchTerm) {
+                    return tx.user.name.toLowerCase().includes(searchTerm) ||
+                           tx.txId.toLowerCase().includes(searchTerm) ||
+                           tx.location.toLowerCase().includes(searchTerm) ||
+                           tx.ip.includes(searchTerm) ||
+                           tx.device.toLowerCase().includes(searchTerm);
+                }
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                alertsContainer.innerHTML = `<div class="text-slate-500 text-sm italic text-center mt-10">No matching alerts found.</div>`;
+                return;
+            }
+
+            alertsContainer.innerHTML = filtered.map(tx => {
+                let tagClass = "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30";
+                
+                if (tx.decision === "BLOCK") {
+                    tagClass = "bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30";
+                } else if (tx.decision === "FLAG") {
+                    tagClass = "bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30";
+                }
+
+                // Adjust card styling dynamically depending on whether it is light or dark mode
+                let cardThemeClass = "bg-white/80 border-slate-200 dark:bg-zinc-950/75 dark:border-zinc-800/80 hover:bg-white dark:hover:bg-zinc-950";
+                if (tx.decision === "BLOCK") {
+                    cardThemeClass = "bg-red-50/40 border-red-200/50 hover:bg-red-50 dark:bg-red-500/5 dark:border-red-900/30 dark:hover:bg-red-500/10";
+                } else if (tx.decision === "FLAG") {
+                    cardThemeClass = "bg-amber-50/40 border-amber-200/50 hover:bg-amber-50 dark:bg-amber-500/5 dark:border-amber-900/30 dark:hover:bg-amber-500/10";
+                } else {
+                    cardThemeClass = "bg-emerald-50/40 border-emerald-200/50 hover:bg-emerald-50 dark:bg-emerald-500/5 dark:border-emerald-900/30 dark:hover:bg-emerald-500/10";
+                }
+
+                const initials = tx.user.name.split(' ').map(n => n[0]).join('');
+
+                return `
+                    <div class="fade-in p-4 rounded-xl border ${cardThemeClass} transition duration-150 shadow-sm flex flex-col space-y-3 relative">
+                      <div class="flex justify-between items-start">
+                        <div class="flex items-center space-x-3">
+                          <div class="w-8 h-8 rounded-full ${tx.user.avatarColor} flex items-center justify-center text-white font-bold text-xs shadow-md">
+                            ${initials}
+                          </div>
+                          <div>
+                            <h3 class="font-semibold text-slate-900 dark:text-slate-100 text-xs">${tx.user.name}</h3>
+                            <p class="text-[10px] text-slate-500 dark:text-slate-400 font-mono">${tx.user.email}</p>
+                          </div>
+                        </div>
+                        <div class="flex flex-col items-end space-y-0.5">
+                          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${tagClass} flex items-center shadow-sm uppercase">
+                              ${tx.decision === 'BLOCK' ? '🚫 ' : ''}${tx.decision}
+                          </span>
+                          <span class="text-[10px] font-mono text-slate-500 dark:text-slate-400">Score: ${tx.score}</span>
+                        </div>
+                      </div>
+
+                      <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] border-t border-slate-200 dark:border-slate-800/60 pt-2 text-slate-600 dark:text-slate-300">
+                        <div><span class="text-slate-450 dark:text-slate-500">Amount:</span> <span class="font-mono font-semibold text-slate-800 dark:text-slate-200">$${tx.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>
+                        <div><span class="text-slate-455 dark:text-slate-500">Location:</span> <span class="text-slate-800 dark:text-slate-200 truncate inline-block max-w-[100px] align-bottom" title="${tx.location}">${tx.location}</span></div>
+                        <div><span class="text-slate-455 dark:text-slate-500">Device:</span> <span class="text-slate-800 dark:text-slate-200 truncate inline-block max-w-[100px] align-bottom" title="${tx.device}">${tx.device}</span></div>
+                        <div><span class="text-slate-455 dark:text-slate-500">IP Address:</span> <span class="font-mono text-slate-800 dark:text-slate-200">${tx.ip}</span></div>
+                      </div>
+
+                      <div class="text-[10px] text-slate-700 dark:text-slate-300 bg-slate-100/50 dark:bg-zinc-900/40 p-2 rounded-lg border border-slate-200 dark:border-zinc-800/40 space-y-1">
+                        ${tx.reasons.length > 0 ? tx.reasons.map(r => `<div class="flex"><span class="text-slate-400 dark:text-slate-500 mr-1.5">•</span> ${r}</div>`).join('') : '<span class="text-slate-400 dark:text-slate-500 italic">All checks nominal.</span>'}
+                      </div>
+
+                      <div class="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-800/60 text-xs">
+                        <span class="font-mono text-[9px] text-slate-400 dark:text-slate-500">TX-${tx.txId}</span>
+                        <div class="flex space-x-2">
+                          <button onclick="openInspectModal('${tx.txId}')" class="bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-slate-200 px-2 py-0.5 rounded border border-slate-200 dark:border-zinc-800 transition duration-100 font-semibold text-[10px]">
+                            Inspect
+                          </button>
+                          <button onclick="openFreezeModal('${tx.txId}')" class="bg-red-500/10 dark:bg-red-500/20 hover:bg-red-500/20 dark:hover:bg-red-500/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/30 px-2 py-0.5 rounded transition duration-100 font-semibold text-[10px]">
+                            Freeze
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Tab Filtering Handler
+        window.setFilterTab = function(btn, tab) {
+            document.querySelectorAll('.filter-tab').forEach(b => {
+                b.classList.remove('active', 'text-slate-100', 'bg-blue-600', 'dark:bg-blue-500/20', 'border', 'border-blue-600', 'dark:border-blue-500/30');
+                b.classList.add('text-slate-500', 'dark:text-slate-400', 'hover:text-slate-900', 'hover:text-slate-100');
+            });
+            btn.classList.add('active', 'text-slate-100', 'bg-blue-600', 'dark:bg-blue-500/20', 'border', 'border-blue-600', 'dark:border-blue-500/30');
+            btn.classList.remove('text-slate-500', 'dark:text-slate-400', 'hover:text-slate-900', 'hover:text-slate-100');
+            renderAlerts();
+        };
+
+        // Live Search Handler
+        window.handleSearch = function() {
+            renderAlerts();
+        };
+
+        // Modal: Inspect User Details
+        window.openInspectModal = function(txId) {
+            const tx = allTransactions.find(t => t.txId === txId);
+            if (!tx) return;
+
+            const modal = document.getElementById('inspectModal');
+            const initials = tx.user.name.split(' ').map(n => n[0]).join('');
+
+            const avatar = document.getElementById('inspectAvatar');
+            avatar.className = `w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg ${tx.user.avatarColor}`;
+            avatar.innerText = initials;
+
+            document.getElementById('inspectName').innerText = tx.user.name;
+            document.getElementById('inspectEmail').innerText = tx.user.email;
+            document.getElementById('inspectBalance').innerText = `$${tx.user.balance.toLocaleString()}`;
+            document.getElementById('inspectScoreMetric').innerText = `${tx.score}/100`;
+            document.getElementById('inspectVerdictMetric').innerText = tx.decision;
+
+            let geoInfo = `Transaction matches home coordinate radius. Primary residence is in <span class="text-slate-900 dark:text-slate-100 font-semibold">${tx.user.homeLoc}</span>.`;
+            if (tx.decision === 'BLOCK' || tx.decision === 'FLAG') {
+                geoInfo = `<span class="text-red-500 dark:text-red-400 font-semibold">Anomaly Detected!</span> Device connected from <span class="text-slate-900 dark:text-slate-100 font-semibold">${tx.location}</span>, which is 6,400 miles from home location (<span class="text-slate-500">${tx.user.homeLoc}</span>) without recorded travel notification.`;
+            }
+            document.getElementById('inspectGeoInfo').innerHTML = geoInfo;
+
+            const trustSpan = document.getElementById('inspectTrust');
+            if (tx.decision === 'BLOCK') {
+                trustSpan.innerText = "CRITICAL RISK";
+                trustSpan.className = "text-lg font-bold text-red-600 dark:text-red-500";
+            } else if (tx.decision === 'FLAG') {
+                trustSpan.innerText = "MEDIUM RISK";
+                trustSpan.className = "text-lg font-bold text-amber-500 dark:text-amber-400";
+            } else {
+                trustSpan.innerText = "HIGH TRUST";
+                trustSpan.className = "text-lg font-bold text-emerald-600 dark:text-emerald-400";
+            }
+
+            const freezeBtn = document.getElementById('inspectFreezeBtn');
+            freezeBtn.onclick = () => {
+                closeInspectModal();
+                openFreezeModal(txId);
+            };
+
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+        };
+
+        window.closeInspectModal = function() {
+            document.getElementById('inspectModal').classList.add('opacity-0', 'pointer-events-none');
+        };
+
+        // Modal: Freeze User Confirmation
+        window.openFreezeModal = function(txId) {
+            const tx = allTransactions.find(t => t.txId === txId);
+            if (!tx) return;
+
+            activeFreezeTxId = txId;
+            document.getElementById('freezeUserName').innerText = tx.user.name;
+
+            const modal = document.getElementById('freezeModal');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+        };
+
+        window.closeFreezeModal = function() {
+            document.getElementById('freezeModal').classList.add('opacity-0', 'pointer-events-none');
+            activeFreezeTxId = null;
+        };
+
+        window.confirmFreezeUser = function() {
+            const tx = allTransactions.find(t => t.txId === activeFreezeTxId);
+            if (!tx) return;
+
+            frozenUsersCount++;
+            document.getElementById('kpiFrozen').innerText = frozenUsersCount;
+
+            closeFreezeModal();
+
+            // Display success notification toast
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').innerText = `Accounts for ${tx.user.name} have been fully suspended.`;
+            
+            toast.classList.remove('opacity-0', 'translate-y-24');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            // Set system status text temporarily to show mitigation active
+            const statusText = document.getElementById('systemStatusText');
+            const dot = document.querySelector('.pulse-dot');
+            statusText.innerText = "Mitigation Active";
+            statusText.className = "text-sm font-medium text-purple-600 dark:text-purple-400";
+            dot.style.backgroundColor = '#a855f7';
+            dot.style.boxShadow = '0 0 12px rgba(168,85,247,0.8)';
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', 'translate-y-24');
+                
+                statusText.innerText = "System Secure";
+                const isCurrentDark = document.documentElement.classList.contains('dark');
+                statusText.className = isCurrentDark ? "text-sm font-medium text-emerald-400" : "text-sm font-medium text-emerald-600";
+                dot.style.backgroundColor = '#10b981';
+                dot.style.boxShadow = '0 0 12px rgba(16,185,129,0.8)';
+            }, 4000);
+        };
+
+        // Simulation Loop
+        setInterval(() => {
+            let isAnomaly = Math.random() > 0.82;
+            let score = Math.floor(Math.random() * 22);
+            let decision = "APPROVE";
+            let reasons = [];
+            
+            if (isAnomaly) {
+                let severity = Math.random();
+                if (severity > 0.7) {
+                    score = Math.floor(Math.random() * 15) + 85; // 85-100
+                    decision = "BLOCK";
+                    reasons = ["Isolation Score: 0.94", "Velocity > 500% usual", "Offshore IP detected"];
+                    chartData.datasets[0].borderColor = '#ef4444'; // turn red briefly
+                } else {
+                    score = Math.floor(Math.random() * 24) + 60; // 60-84
+                    decision = "FLAG";
+                    reasons = ["Unusual amount relative to mean", "New merchant device"];
+                    chartData.datasets[0].borderColor = '#f59e0b';
+                }
+            } else {
+                chartData.datasets[0].borderColor = '#3b82f6'; // normal blue
+            }
+
+            const txId = Math.random().toString(36).substring(2, 10).toUpperCase();
+            addAlert(txId, score, decision, reasons);
+
+            // Update chart
+            chartData.datasets[0].data.push(score);
+            chartData.datasets[0].data.shift();
+            riskChart.update();
+
+        }, 1200);
+        
+    </script>
+</body>
+</html>
