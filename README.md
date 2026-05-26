@@ -95,3 +95,10 @@ To bring this microservices architecture to life, you would:
 1. **Implement Frontend in React**: Scaffold standard React files in [frontend/src/](file:///Users/sandew/Documents/ANTIGRAVITY/FRUAD/frontend/src/) and link them to the installed Tailwind configs to recreate the mockup's UI using robust components (`Recharts` instead of static HTML `Chart.js`).
 2. **Create backend APIs**: Build API endpoints inside the [backend/](file:///Users/sandew/Documents/ANTIGRAVITY/FRUAD/backend/) directories using Node.js (Express/Fastify) or Python (FastAPI).
 3. **Establish Data Streaming**: Use a broker like Apache Kafka or RabbitMQ to stream transactions from `transaction_service` -> `fraud_service` -> `risk_scoring_service` in real-time.
+
+
+<img width="1920" height="999" alt="image" src="https://github.com/user-attachments/assets/3a5c3e81-e687-44b3-b52c-b69beca5b741" />
+
+<img width="594" height="624" alt="image" src="https://github.com/user-attachments/assets/ce0e179c-1859-4eaf-8551-c4ba2455cd72" />
+
+
