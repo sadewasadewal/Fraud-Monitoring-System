@@ -47,12 +47,24 @@ const server = http.createServer((req, res) => {
     });
 });
 
-server.listen(PORT, () => {
-    console.log(`\x1b[32m✔ Server successfully started at http://localhost:${PORT}\x1b[0m`);
-    console.log(`\x1b[36mℹ Serving preview.html as the entry point...\x1b[0m`);
-    
-    // Automatically open the browser
-    const url = `http://localhost:${PORT}`;
-    const start = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
-    exec(`${start} ${url}`);
-});
+const startServer = (port) => {
+    server.listen(port, () => {
+        console.log(`\x1b[32m✔ Server successfully started at http://localhost:${port}\x1b[0m`);
+        console.log(`\x1b[36mℹ Serving preview.html as the entry point...\x1b[0m`);
+        
+        // Automatically open the browser
+        const url = `http://localhost:${port}`;
+        const start = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
+        exec(`${start} ${url}`);
+    }).on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+            console.log(`\x1b[33m⚠ Port ${port} is in use, trying port ${port + 1}...\x1b[0m`);
+            startServer(port + 1);
+        } else {
+            console.error(err);
+        }
+    });
+};
+
+startServer(PORT);
+
