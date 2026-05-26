@@ -1,0 +1,12 @@
+{
+  "name": "ai-fraud-monitoring-system",
+  "version": "1.0.0",
+  "description": "AI Fraud Detection & Live Monitoring System Mockup",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
